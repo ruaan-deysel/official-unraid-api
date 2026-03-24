@@ -89,12 +89,10 @@ describe('NvidiaGpuService', () => {
 
             // First call from readAll -> queryGpuMetrics
             mockExecFileAsync.mockResolvedValueOnce({ stdout: gpuCsvLine });
-            // Second call from readAll -> queryProcesses -> queryGpuMetrics (internal)
+            // Second call from readAll -> queryProcesses (busIdToId map passed in, no extra queryGpuMetrics)
             mockExecFileAsync.mockResolvedValueOnce({
                 stdout: '00000000:01:00.0, 1234, ffmpeg, 2048\n',
             });
-            // Third call from queryProcesses -> queryGpuMetrics (to build busId map)
-            mockExecFileAsync.mockResolvedValueOnce({ stdout: gpuCsvLine });
 
             const readings = await service.readAll();
 

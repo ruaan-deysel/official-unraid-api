@@ -49,7 +49,8 @@ export class NvidiaGpuService implements GpuMonitoringProvider {
 
     async readAll(): Promise<RawGpuReading[]> {
         const readings = await this.queryGpuMetrics();
-        const processMap = await this.queryProcesses();
+        const busIdToId = new Map(readings.map((g) => [g.pciBusId, g.id]));
+        const processMap = await this.queryProcesses(busIdToId);
 
         for (const reading of readings) {
             reading.processes = processMap.get(reading.id) ?? [];
@@ -105,7 +106,9 @@ export class NvidiaGpuService implements GpuMonitoringProvider {
         };
     }
 
-    private async queryProcesses(): Promise<Map<string, RawGpuProcess[]>> {
+    private async queryProcesses(
+        busIdToId: Map<string | undefined, string>
+    ): Promise<Map<string, RawGpuProcess[]>> {
         const map = new Map<string, RawGpuProcess[]>();
 
         try {
@@ -117,9 +120,6 @@ export class NvidiaGpuService implements GpuMonitoringProvider {
                 ],
                 { timeout: 10000 }
             );
-
-            const allGpuMetrics = await this.queryGpuMetrics();
-            const busIdToId = new Map(allGpuMetrics.map((g) => [g.pciBusId, g.id]));
 
             for (const line of stdout.trim().split('\n')) {
                 if (!line.trim()) continue;

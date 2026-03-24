@@ -1,6 +1,7 @@
 import { Field, Float, InputType, Int, ObjectType } from '@nestjs/graphql';
 
-import { IsBoolean, IsNumber, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsBoolean, IsNumber, IsOptional, ValidateNested } from 'class-validator';
 
 @ObjectType({ description: 'GPU temperature threshold configuration' })
 export class GpuThresholdsConfig {
@@ -58,6 +59,8 @@ export class UpdateGpuMonitoringConfigInput {
     polling_interval?: number;
 
     @Field(() => GpuThresholdsInput, { nullable: true })
+    @ValidateNested()
+    @Type(() => GpuThresholdsInput)
     @IsOptional()
     thresholds?: GpuThresholdsInput;
 }
