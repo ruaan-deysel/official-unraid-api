@@ -10,6 +10,8 @@ import { CpuTopologyService } from '@app/unraid-api/graph/resolvers/info/cpu/cpu
 import { CpuService } from '@app/unraid-api/graph/resolvers/info/cpu/cpu.service.js';
 import { MemoryUtilization } from '@app/unraid-api/graph/resolvers/info/memory/memory.model.js';
 import { MemoryService } from '@app/unraid-api/graph/resolvers/info/memory/memory.service.js';
+import { GpuMonitoringConfigService } from '@app/unraid-api/graph/resolvers/metrics/gpu/gpu-config.service.js';
+import { GpuMonitoringService } from '@app/unraid-api/graph/resolvers/metrics/gpu/gpu.service.js';
 import { MetricsResolver } from '@app/unraid-api/graph/resolvers/metrics/metrics.resolver.js';
 import { TemperatureConfigService } from '@app/unraid-api/graph/resolvers/metrics/temperature/temperature-config.service.js';
 import { TemperatureService } from '@app/unraid-api/graph/resolvers/metrics/temperature/temperature.service.js';
@@ -48,6 +50,18 @@ describe('MetricsResolver Integration Tests', () => {
                     provide: TemperatureConfigService,
                     useValue: {
                         getConfig: vi.fn().mockReturnValue({ enabled: true, polling_interval: 5000 }),
+                    },
+                },
+                {
+                    provide: GpuMonitoringService,
+                    useValue: {
+                        getMetrics: vi.fn().mockResolvedValue(null),
+                    },
+                },
+                {
+                    provide: GpuMonitoringConfigService,
+                    useValue: {
+                        getConfig: vi.fn().mockReturnValue({ enabled: true, polling_interval: 3000 }),
                     },
                 },
             ],

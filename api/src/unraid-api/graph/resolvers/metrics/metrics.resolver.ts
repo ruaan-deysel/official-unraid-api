@@ -11,6 +11,10 @@ import { CpuPackages, CpuUtilization } from '@app/unraid-api/graph/resolvers/inf
 import { CpuService } from '@app/unraid-api/graph/resolvers/info/cpu/cpu.service.js';
 import { MemoryUtilization } from '@app/unraid-api/graph/resolvers/info/memory/memory.model.js';
 import { MemoryService } from '@app/unraid-api/graph/resolvers/info/memory/memory.service.js';
+import { UpdateGpuMonitoringConfigInput } from '@app/unraid-api/graph/resolvers/metrics/gpu/gpu-config.model.js';
+import { GpuMonitoringConfigService } from '@app/unraid-api/graph/resolvers/metrics/gpu/gpu-config.service.js';
+import { GpuMonitoringMetrics } from '@app/unraid-api/graph/resolvers/metrics/gpu/gpu.model.js';
+import { GpuMonitoringService } from '@app/unraid-api/graph/resolvers/metrics/gpu/gpu.service.js';
 import { Metrics } from '@app/unraid-api/graph/resolvers/metrics/metrics.model.js';
 import { TemperatureConfigInput } from '@app/unraid-api/graph/resolvers/metrics/temperature/temperature-config.input.js';
 import { TemperatureConfigService } from '@app/unraid-api/graph/resolvers/metrics/temperature/temperature-config.service.js';
@@ -27,10 +31,12 @@ export class MetricsResolver implements OnModuleInit {
         private readonly cpuTopologyService: CpuTopologyService,
         private readonly memoryService: MemoryService,
         private readonly temperatureService: TemperatureService,
+        private readonly gpuMonitoringService: GpuMonitoringService,
         private readonly subscriptionTracker: SubscriptionTrackerService,
         private readonly subscriptionHelper: SubscriptionHelperService,
         private readonly configService: ConfigService,
-        private readonly temperatureConfigService: TemperatureConfigService
+        private readonly temperatureConfigService: TemperatureConfigService,
+        private readonly gpuMonitoringConfigService: GpuMonitoringConfigService
     ) {}
 
     onModuleInit() {
@@ -100,6 +106,22 @@ export class MetricsResolver implements OnModuleInit {
                     }
                 },
                 polling_interval
+            );
+        }
+
+        const gpuConfig = this.gpuMonitoringConfigService.getConfig();
+        if (gpuConfig.enabled) {
+            this.subscriptionTracker.registerTopic(
+                PUBSUB_CHANNEL.GPU_METRICS,
+                async () => {
+                    const payload = await this.gpuMonitoringService.getMetrics();
+                    if (payload) {
+                        pubsub.publish(PUBSUB_CHANNEL.GPU_METRICS, {
+                            systemMetricsGpu: payload,
+                        });
+                    }
+                },
+                gpuConfig.polling_interval ?? 3000
             );
         }
     }
@@ -176,6 +198,24 @@ export class MetricsResolver implements OnModuleInit {
     })
     public async systemMetricsTemperatureSubscription() {
         return this.subscriptionHelper.createTrackedSubscription(PUBSUB_CHANNEL.TEMPERATURE_METRICS);
+    }
+
+    @ResolveField(() => GpuMonitoringMetrics, { nullable: true })
+    public async gpuMonitoring(): Promise<GpuMonitoringMetrics | null> {
+        return this.gpuMonitoringService.getMetrics();
+    }
+
+    @Subscription(() => GpuMonitoringMetrics, {
+        name: 'systemMetricsGpu',
+        resolve: (value) => value.systemMetricsGpu,
+        nullable: true,
+    })
+    @UsePermissions({
+        action: AuthAction.READ_ANY,
+        resource: Resource.INFO,
+    })
+    public async systemMetricsGpuSubscription() {
+        return this.subscriptionHelper.createTrackedSubscription(PUBSUB_CHANNEL.GPU_METRICS);
     }
 
     @Mutation(() => Boolean)
@@ -271,6 +311,33 @@ export class MetricsResolver implements OnModuleInit {
             }
             if (input.history.retention_ms !== undefined) {
                 this.configService.set('temperature.history.retention_ms', input.history.retention_ms);
+            }
+        }
+
+        return true;
+    }
+
+    @Mutation(() => Boolean)
+    @UsePermissions({
+        action: AuthAction.UPDATE_ANY,
+        resource: Resource.INFO,
+    })
+    public async updateGpuMonitoringConfig(
+        @Args('input', { type: () => UpdateGpuMonitoringConfigInput })
+        input: UpdateGpuMonitoringConfigInput
+    ): Promise<boolean> {
+        if (input.enabled !== undefined) {
+            this.configService.set('gpuMonitoring.enabled', input.enabled);
+        }
+        if (input.polling_interval !== undefined) {
+            this.configService.set('gpuMonitoring.polling_interval', input.polling_interval);
+        }
+        if (input.thresholds) {
+            if (input.thresholds.warning !== undefined) {
+                this.configService.set('gpuMonitoring.thresholds.warning', input.thresholds.warning);
+            }
+            if (input.thresholds.critical !== undefined) {
+                this.configService.set('gpuMonitoring.thresholds.critical', input.thresholds.critical);
             }
         }
 

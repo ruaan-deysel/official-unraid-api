@@ -8,6 +8,8 @@ import { pubsub } from '@app/core/pubsub.js';
 import { CpuTopologyService } from '@app/unraid-api/graph/resolvers/info/cpu/cpu-topology.service.js';
 import { CpuService } from '@app/unraid-api/graph/resolvers/info/cpu/cpu.service.js';
 import { MemoryService } from '@app/unraid-api/graph/resolvers/info/memory/memory.service.js';
+import { GpuMonitoringConfigService } from '@app/unraid-api/graph/resolvers/metrics/gpu/gpu-config.service.js';
+import { GpuMonitoringService } from '@app/unraid-api/graph/resolvers/metrics/gpu/gpu.service.js';
 import { MetricsResolver } from '@app/unraid-api/graph/resolvers/metrics/metrics.resolver.js';
 import { TemperatureConfigService } from '@app/unraid-api/graph/resolvers/metrics/temperature/temperature-config.service.js';
 import {
@@ -119,6 +121,18 @@ describe('MetricsResolver', () => {
                         getConfig: vi.fn().mockReturnValue({ enabled: true, polling_interval: 5000 }),
                     },
                 },
+                {
+                    provide: GpuMonitoringService,
+                    useValue: {
+                        getMetrics: vi.fn().mockResolvedValue(null),
+                    },
+                },
+                {
+                    provide: GpuMonitoringConfigService,
+                    useValue: {
+                        getConfig: vi.fn().mockReturnValue({ enabled: true, polling_interval: 3000 }),
+                    },
+                },
             ],
         }).compile();
 
@@ -217,20 +231,30 @@ describe('MetricsResolver', () => {
                 getConfig: vi.fn().mockReturnValue({ enabled: true, polling_interval: 5000 }),
             };
 
+            const gpuMonitoringServiceMock = {
+                getMetrics: vi.fn().mockResolvedValue(null),
+            };
+
+            const gpuMonitoringConfigServiceMock = {
+                getConfig: vi.fn().mockReturnValue({ enabled: true, polling_interval: 3000 }),
+            };
+
             const testModule = new MetricsResolver(
                 cpuService,
                 cpuTopologyServiceMock as unknown as CpuTopologyService,
                 memoryService,
                 temperatureServiceMock as unknown as TemperatureService,
+                gpuMonitoringServiceMock as unknown as GpuMonitoringService,
                 subscriptionTracker as unknown as SubscriptionTrackerService,
                 {} as unknown as SubscriptionHelperService,
                 configServiceMock as unknown as ConfigService,
-                temperatureConfigServiceMock as unknown as TemperatureConfigService
+                temperatureConfigServiceMock as unknown as TemperatureConfigService,
+                gpuMonitoringConfigServiceMock as unknown as GpuMonitoringConfigService
             );
 
             testModule.onModuleInit();
 
-            expect(subscriptionTracker.registerTopic).toHaveBeenCalledTimes(4);
+            expect(subscriptionTracker.registerTopic).toHaveBeenCalledTimes(5);
             expect(subscriptionTracker.registerTopic).toHaveBeenCalledWith(
                 'CPU_UTILIZATION',
                 expect.any(Function),
@@ -262,10 +286,14 @@ describe('MetricsResolver', () => {
                 {} as CpuTopologyService,
                 {} as MemoryService,
                 temperatureServiceMock,
+                { getMetrics: vi.fn().mockResolvedValue(null) } as unknown as GpuMonitoringService,
                 subscriptionTracker,
                 {} as SubscriptionHelperService,
                 {} as ConfigService,
-                temperatureConfigServiceMock
+                temperatureConfigServiceMock,
+                {
+                    getConfig: vi.fn().mockReturnValue({ enabled: true, polling_interval: 3000 }),
+                } as unknown as GpuMonitoringConfigService
             );
 
             testModule.onModuleInit();
@@ -305,10 +333,14 @@ describe('MetricsResolver', () => {
                 {} as CpuTopologyService,
                 {} as MemoryService,
                 temperatureServiceMock,
+                { getMetrics: vi.fn().mockResolvedValue(null) } as unknown as GpuMonitoringService,
                 subscriptionTracker,
                 {} as SubscriptionHelperService,
                 {} as ConfigService,
-                temperatureConfigServiceMock
+                temperatureConfigServiceMock,
+                {
+                    getConfig: vi.fn().mockReturnValue({ enabled: true, polling_interval: 3000 }),
+                } as unknown as GpuMonitoringConfigService
             );
 
             testModule.onModuleInit();
